@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skate Logger</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5faff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #333;
+    }
+    .screen {
+      display: none;
+      flex-direction: column;
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .screen.active {
+      display: flex;
+    }
+    .question {
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      font-weight: 500;
+    }
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .option {
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      background: white;
+      cursor: pointer;
+      user-select: none;
+    }
+    .option.selected {
+      background: #cceeff;
+      border-color: #66ccff;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 10px;
+      background: #66ccff;
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    textarea, input[type="number"], input[type="text"] {
+      font-size: 1em;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Screens remain unchanged -->
+
+  <script>
+    const data = {
+      date: new Date().toISOString().split('T')[0],
+      sessions_per_day: '',
+      duration_minutes: '',
+      focus_area: [],
+      commute: false,
+      skates: '',
+      surface_type: [],
+      video_recorded: false,
+      fall: false,
+      protective_gear: [],
+      notes: ''
+    };
+
+    document.querySelectorAll('.options').forEach(group => {
+      group.addEventListener('click', e => {
+        if (e.target.classList.contains('option')) {
+          const isMulti = group.id.includes('focus') || group.id.includes('surface') || group.id.includes('gear') || group.id.includes('bool');
+          if (isMulti) {
+            e.target.classList.toggle('selected');
+          } else {
+            group.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            e.target.classList.add('selected');
+          }
+        }
+      });
+    });
+
+    function confirmSelection(field, nextId) {
+      const selected = Array.from(document.querySelectorAll(`#${field.replace('_', '-')}-options .option.selected`)).map(opt => opt.dataset.value);
+      data[field] = selected.length > 1 ? selected : selected[0] || '';
+      showNextScreen(nextId);
+    }
+
+    function confirmText(field, nextId) {
+      const value = document.getElementById(field).value;
+      data[field] = value;
+      document.getElementById('review').innerText = JSON.stringify(data, null, 2);
+      showNextScreen(nextId);
+    }
+
+    function confirmBooleans(nextId) {
+      ['commute', 'video_recorded', 'fall'].forEach(field => {
+        data[field] = document.querySelector(`#bool-options .option[data-value="${field}"]`).classList.contains('selected');
+      });
+      showNextScreen(nextId);
+    }
+
+    function showNextScreen(nextId) {
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+      document.getElementById(nextId).classList.add('active');
+    }
+
+    async function fetchSessionsToday() {
+      try {
+        const response = await fetch('https://script.google.com/macros/s/AKfycbzpi6upugCg6kr9LQIH4RXlUtTGfNWTyOXf0UWCZuI8HD08hUyeS2-GeJaaDdqQ5xuMig/exec', {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        const json = await response.json();
+        const today = data.date;
+        const rows = json.rows || [];
+        const lastRow = rows[rows.length - 1];
+        if (lastRow && lastRow[0] === today) {
+          data.sessions_per_day = parseInt(lastRow[1], 10) + 1;
+        } else {
+          data.sessions_per_day = 1;
+        }
+      } catch (err) {
+        console.error('Failed to fetch session count:', err);
+        data.sessions_per_day = 1; // Fallback if error
+      }
+    }
+
+    fetchSessionsToday();
+
+    function submitForm() {
+      fetch('https://script.google.com/macros/s/AKfycbzpi6upugCg6kr9LQIH4RXlUtTGfNWTyOXf0UWCZuI8HD08hUyeS2-GeJaaDdqQ5xuMig/exec', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ values: [[
+          data.date,
+          data.sessions_per_day,
+          data.duration_minutes,
+          data.focus_area,
+          data.commute,
+          data.skates,
+          data.surface_type,
+          data.video_recorded,
+          data.fall,
+          data.protective_gear,
+          data.notes
+        ]]})
+      });
+      alert('Session submitted!');
+    }
+  </script>
+</body>
+</html>
