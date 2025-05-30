@@ -1,174 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Skate Logger</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skate Session Logger</title>
   <style>
     body {
-      font-family: 'Inter', sans-serif;
-      background: #f5faff;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: #333;
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    .screen {
-      display: none;
-      flex-direction: column;
-      padding: 20px;
+    label {
+      display: block;
+      margin-bottom: 1rem;
+    }
+    input[type="text"], input[type="date"], input[type="number"], textarea, select {
       width: 100%;
-      max-width: 400px;
-    }
-    .screen.active {
-      display: flex;
-    }
-    .question {
-      margin-bottom: 10px;
-      font-size: 1.2em;
-      font-weight: 500;
-    }
-    .options {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .option {
-      padding: 10px 15px;
-      border-radius: 20px;
-      border: 1px solid #ccc;
-      background: white;
-      cursor: pointer;
-      user-select: none;
-    }
-    .option.selected {
-      background: #cceeff;
-      border-color: #66ccff;
+      padding: 0.5rem;
+      font-size: 1rem;
     }
     button {
-      padding: 10px 15px;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background: #4c9aff;
       border: none;
-      border-radius: 10px;
-      background: #66ccff;
       color: white;
-      font-size: 1em;
+      border-radius: 6px;
       cursor: pointer;
-    }
-    textarea, input[type="number"], input[type="text"] {
-      font-size: 1em;
-      padding: 10px;
-      width: 100%;
-      box-sizing: border-box;
-      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
-  <!-- Screens remain unchanged -->
+  <h1>🛼 Log Your Skate Session</h1>
+  <form id="skateLogForm">
+    <label>Date:
+      <input type="date" name="date" required />
+    </label>
+
+    <label>Duration (minutes):
+      <input type="number" name="duration_minutes" required />
+    </label>
+
+    <label>Focus Area:
+      <input type="text" name="focus_area" placeholder="e.g. backwards, t_stop" />
+    </label>
+
+    <label>Commute:
+      <input type="checkbox" name="commute" /> Yes
+    </label>
+
+    <label>Skates:
+      <select name="skates">
+        <option value="crivit">Crivit</option>
+        <option value="fr3_80s">FR3 80s</option>
+      </select>
+    </label>
+
+    <label>Surface Type:
+      <input type="text" name="surface_type" placeholder="e.g. concrete, footpath" />
+    </label>
+
+    <label>Video Recorded:
+      <input type="checkbox" name="video_recorded" /> Yes
+    </label>
+
+    <label>Fall:
+      <input type="checkbox" name="fall" /> Yes
+    </label>
+
+    <label>Protective Gear:
+      <input type="text" name="protective_gear" placeholder="e.g. helmet, wrist_guards" />
+    </label>
+
+    <label>Notes:
+      <textarea name="notes" rows="3" placeholder="optional"></textarea>
+    </label>
+
+    <button type="submit">Log Session</button>
+  </form>
 
   <script>
-    const data = {
-      date: new Date().toISOString().split('T')[0],
-      sessions_per_day: '',
-      duration_minutes: '',
-      focus_area: [],
-      commute: false,
-      skates: '',
-      surface_type: [],
-      video_recorded: false,
-      fall: false,
-      protective_gear: [],
-      notes: ''
-    };
+    document.getElementById("skateLogForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        date: form.date.value,
+        duration_minutes: parseInt(form.duration_minutes.value, 10),
+        focus_area: form.focus_area.value,
+        commute: form.commute.checked,
+        skates: form.skates.value,
+        surface_type: form.surface_type.value,
+        video_recorded: form.video_recorded.checked,
+        fall: form.fall.checked,
+        protective_gear: form.protective_gear.value,
+        notes: form.notes.value
+      };
 
-    document.querySelectorAll('.options').forEach(group => {
-      group.addEventListener('click', e => {
-        if (e.target.classList.contains('option')) {
-          const isMulti = group.id.includes('focus') || group.id.includes('surface') || group.id.includes('gear') || group.id.includes('bool');
-          if (isMulti) {
-            e.target.classList.toggle('selected');
-          } else {
-            group.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
-            e.target.classList.add('selected');
-          }
-        }
-      });
-    });
-
-    function confirmSelection(field, nextId) {
-      const selected = Array.from(document.querySelectorAll(`#${field.replace('_', '-')}-options .option.selected`)).map(opt => opt.dataset.value);
-      data[field] = selected.length > 1 ? selected : selected[0] || '';
-      showNextScreen(nextId);
-    }
-
-    function confirmText(field, nextId) {
-      const value = document.getElementById(field).value;
-      data[field] = value;
-      document.getElementById('review').innerText = JSON.stringify(data, null, 2);
-      showNextScreen(nextId);
-    }
-
-    function confirmBooleans(nextId) {
-      ['commute', 'video_recorded', 'fall'].forEach(field => {
-        data[field] = document.querySelector(`#bool-options .option[data-value="${field}"]`).classList.contains('selected');
-      });
-      showNextScreen(nextId);
-    }
-
-    function showNextScreen(nextId) {
-      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
-      document.getElementById(nextId).classList.add('active');
-    }
-
-    async function fetchSessionsToday() {
       try {
-        const response = await fetch('https://script.google.com/macros/s/AKfycbztlJK-QiilBXsTGHT28P68AH-6lwBc7Inp4E0bvsE9taKmcp_kUYiSvRrFEy0X4AZm8w/exec', {
-          headers: {
-            'Accept': 'application/json'
-          }
+        const res = await fetch("https://script.google.com/macros/s/AKfycbwSNj5mgIWMWqV-xkvovJ0BDf0utWG-biFhOlztSpWK5qOQX24X_p239GlxIypxPcsQqg/exec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
-        const json = await response.json();
-        const today = data.date;
-        const rows = json.rows || [];
-        const lastRow = rows[rows.length - 1];
-        if (lastRow && lastRow[0] === today) {
-          data.sessions_per_day = parseInt(lastRow[1], 10) + 1;
+
+        if (res.ok) {
+          alert("Session logged!");
+          form.reset();
         } else {
-          data.sessions_per_day = 1;
+          alert("Logging failed. Check console for details.");
         }
       } catch (err) {
-        console.error('Failed to fetch session count:', err);
-        data.sessions_per_day = 1; // Fallback if error
+        console.error(err);
+        alert("Something went wrong. Check console.");
       }
-    }
-
-    fetchSessionsToday();
-
-    function submitForm() {
-      fetch('https://script.google.com/macros/s/AKfycbztlJK-QiilBXsTGHT28P68AH-6lwBc7Inp4E0bvsE9taKmcp_kUYiSvRrFEy0X4AZm8w/exec', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ values: [[
-          data.date,
-          data.sessions_per_day,
-          data.duration_minutes,
-          data.focus_area,
-          data.commute,
-          data.skates,
-          data.surface_type,
-          data.video_recorded,
-          data.fall,
-          data.protective_gear,
-          data.notes
-        ]]})
-      });
-      alert('Session submitted!');
-    }
+    });
   </script>
 </body>
 </html>
